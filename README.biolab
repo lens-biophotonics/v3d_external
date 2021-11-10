@@ -1,0 +1,16 @@
+# How to build
+
+Use docker with ubuntu 18.04 with the following packages installed:
+
+libqt4-dev
+cmake
+build-essential
+zlib1g-dev
+libboost-dev
+libjpeg-dev
+
+Then
+
+```
+./build.linux -B -m -j8
+```
