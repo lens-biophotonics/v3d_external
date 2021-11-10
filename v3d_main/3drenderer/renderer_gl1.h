@@ -182,6 +182,16 @@ public:
 //public:
 	virtual void setRenderMode(RenderMode);
 	virtual void setThickness(double t);
+	virtual void setRadius(double r);
+	virtual double getRadius();
+	virtual void setBandwidth(double r);
+	virtual double getBandwidth();
+	virtual void setOffset(double r);
+	virtual double getOffset();
+	virtual void setLookUpTable();
+	virtual bool * getLookUpTable();
+	virtual void setUseLocalThreshold(bool s);
+	virtual bool getUseLocalThreshold();
 	virtual void toggleTexFilter();
 	virtual void toggleTex2D3D();
 	virtual void toggleTexCompression();
@@ -208,6 +218,9 @@ public:
 
 	virtual void endSelectMode();
 	virtual void updateLandmark();
+	virtual void showLandmark(int XCut0, int XCut1, int YCut0, int YCut1, int ZCut0, int ZCut1);
+	
+	virtual void deleteLastMarker();
 	virtual void updateTracedNeuron();
 
     virtual int zoomview_wheel_event();//by PHC, 20130424
@@ -318,7 +331,12 @@ public:
 			double clipplane[4]=0,	//clipplane==0 means no clip plane
 			int chno=0,    			//must be a valid channel number
 			float *value=0			//if value!=0, output value at center
-			);
+	);
+	XYZ getCenterOfLineProfileExtended(XYZ p1, XYZ p2,
+			double clipplane[4],	//clipplane==0 means no clip plane
+			int chno,    			//must be a valid channel number
+			float *value=0			//if p_value!=0, output value at center
+	);
 	XYZ getCenterOfLocal(XYZ loc);
 
     int getVolumeXsectPosOfMarkerLine(XYZ & locA, XYZ & locB, const MarkerPos& pos, int defaultChanno=-1);//by PHC 20130425
@@ -714,6 +732,11 @@ public:
 	RGBA8 *Zslice_data, *Yslice_data, *Xslice_data, *Fslice_data;
 	RGBA8 *rgbaBuf_Yzx, *rgbaBuf_Xzy;
 	float thicknessX, thicknessY, thicknessZ;
+	double radius;
+	double bandwidth;
+	double offset;
+	bool * lookUpTable;
+	bool useLocalThreshold;
 	float sampleScaleX, sampleScaleY, sampleScaleZ;
 	int imageX, imageY, imageZ, imageT;
 	int safeX, safeY, safeZ;
@@ -764,6 +787,12 @@ private:
 		Zslice_data = Yslice_data = Xslice_data = Fslice_data = 0;
 		rgbaBuf_Yzx = rgbaBuf_Xzy = 0;
 		thicknessX = thicknessY = 1; thicknessZ = 1;
+		radius = 6.0;
+		bandwidth = 3.0;
+		offset = 5.0;
+		lookUpTable = new bool[(2*int(bandwidth+0.5) + 1)*(2*int(bandwidth+0.5) + 1)*(2*int(bandwidth+0.5) + 1)];
+		setLookUpTable();
+		useLocalThreshold = 0;
 		sampleScaleX = sampleScaleY = sampleScaleZ = 1;
 		imageX = imageY = imageZ = imageT = 0;
 		safeX = safeY = safeZ = 0;

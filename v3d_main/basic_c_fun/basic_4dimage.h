@@ -73,6 +73,7 @@ protected:
 	V3DLONG sz2;
 	V3DLONG sz3;
 	V3DLONG sz_time;
+	int * thresholds;
 	TimePackType timepacktype;
 	ImagePixelType datatype;
 	char imgSrcFile[1024]; //the full file path
@@ -94,6 +95,7 @@ public:
 		data1d = 0;
 		sz0 = sz1 = sz2 = sz3 = 0;
 		sz_time = 0;
+		thresholds = 0;
 		datatype = V3D_UNKNOWN;
 		timepacktype = TIME_PACK_NONE;
 		imgSrcFile[0] = '\0';
@@ -114,6 +116,7 @@ public:
 		this->deleteRawDataAndSetPointerToNull();
 		sz0 = sz1 = sz2 = sz3 = 0;
 		sz_time = 0;
+		thresholds = 0;
 		datatype = V3D_UNKNOWN;
 		timepacktype = TIME_PACK_NONE;
 		imgSrcFile[0] = '\0';
@@ -130,6 +133,7 @@ public:
         V3DLONG getZDim() const {return sz2;}
         V3DLONG getCDim() const {return sz3;}
         V3DLONG getTDim() const {return sz_time;}
+        int * getThresholds() const {return thresholds;}
         V3DLONG getValidZSliceNum() const {return valid_zslicenum;}
         V3DLONG getPreValidZSliceNum() const {return prevalid_zslicenum;}
         int getError() const {return b_error;}
@@ -179,7 +183,8 @@ public:
 	void setZDim(V3DLONG v) {sz2=v;}
 	void setCDim(V3DLONG v) {sz3=v;}
 	void setTDim(V3DLONG v) {sz_time=v;}
-	bool setValidZSliceNum(V3DLONG v)
+	void setThresholds(int * v) {thresholds=v;}
+	bool setValidZSliceNum(V3DLONG v) 
 	{
 		if (v==0 && sz2==0) {valid_zslicenum=0; return true;}
 		if (v>=0 && v<sz2) //in this case sz2>0
@@ -591,5 +596,10 @@ struct V3D_Image3DBasic
 	}
 };
 
+/*++++++++++++++++++++++++++++++++++++TEST++++++++++++++++++++++++++++++*/
+
+double compute_interval_entropy(double*, int, int);
+std::vector<std::vector<int> > compute_intervals(int, int, int);
+std::vector<int> multi_kapur(double*, const int, int);
 
 #endif /* _BASIC_4DIMAGE_H_ */

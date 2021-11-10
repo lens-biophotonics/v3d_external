@@ -219,6 +219,8 @@ public:
 
 	virtual void endSelectMode()      {};
 	virtual void updateLandmark()     {};
+	virtual void showLandmark(int XCut0, int XCut1, int YCut0, int YCut1, int ZCut0, int ZCut1) {};
+	virtual void deleteLastMarker()     {};
 	virtual void updateTracedNeuron() {};
 
 	virtual void loadObjectListFromFile()              {};
@@ -232,6 +234,16 @@ public:
 	virtual void toggleLineType()       {};
 
 	virtual void setThickness(double)   {};
+	virtual void setRadius(double)		{};
+	virtual double getRadius()			{};
+	virtual void setBandwidth(double)	{};
+	virtual double getBandwidth()		{};
+	virtual void setOffset(double)	{};
+	virtual double getOffset()		{};
+	virtual void setLookUpTable()		{};
+	virtual bool * getLookUpTable()		{};
+	virtual void setUseLocalThreshold(bool) {};
+	virtual bool getUseLocalThreshold() {};
 	virtual void toggleTexFilter()      {};
 	virtual void toggleTex2D3D()        {};
 	virtual void toggleTexCompression() {};
@@ -293,6 +305,11 @@ public:
     int volTimePoint, volTimeOffset;
 	BoundingBox boundingBox, surfBoundingBox;
 	double thickness; //changed from int to double, PHC, 090215
+	double radius;
+	double bandwidth;
+	double offset;
+	bool * lookUpTable;
+	bool useLocalThreshold;
 	V3DLONG xCut0,xCut1, yCut0,yCut1, zCut0,zCut1;            // for volume
 	float xClip0,xClip1, yClip0,yClip1, zClip0,zClip1;    // for surface
 	float viewClip;
@@ -347,6 +364,12 @@ private:
 	    bFSlice = true; //100729 RZC: it's not slow, default turn on.
 	    CSbeta = alpha_threshold = 0;
 	    thickness = 1;
+		radius = 6.0;
+		bandwidth = 3.0;
+		offset = 5.0;
+		lookUpTable = new bool[(2*int(bandwidth+0.5) + 1)*(2*int(bandwidth+0.5) + 1)*(2*int(bandwidth+0.5) + 1)];
+		setLookUpTable();
+		useLocalThreshold = 0;
 
 	    color_background = XYZW(.1f, .1f, .25f, 1); // background color for volume
 	    color_background2 = XYZW(.8f, .85f, .9f, 1); // background color for geometric object only

@@ -51,6 +51,7 @@
 #include <windows.h>
 #endif
 
+#include <locale.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -840,6 +841,38 @@ void My4DImage::setupData4D()
 	curFocusX = this->getXDim()>>1; //begin from mid location
 	curFocusY = this->getYDim()>>1;
 	curFocusZ = this->getZDim()>>1;
+	
+	/***************************************NEW CODE***********************************/
+	
+	int * thresholds = new int[this->getCDim()];
+	for(int chno=0;chno<this->getCDim();chno++){
+		unsigned char * chanRawData = this->getRawDataAtChannel(chno);
+		double * normalized_histogram = new double[256];
+		for(int counter=0;counter<256;counter++)
+			normalized_histogram[counter] = 0;
+		for(int j=0;j<this->getTotalUnitNumberPerChannel();j++){
+			int intensity = int((float)chanRawData[j] + 0.5);
+			normalized_histogram[intensity] += 1;
+		}
+		for(int i=0;i<256;i++)
+			normalized_histogram[i] = normalized_histogram[i]/this->getTotalUnitNumberPerChannel();
+		
+		std::vector<int> results = multi_kapur(normalized_histogram, 256, 2);
+
+		int min_threshold = 1e9;
+		for(std::vector<int>::iterator it = results.begin();it != results.end();it++){
+			int threshold = *it;
+			//DEBUG
+			//qDebug("SOGLIA %d", threshold);
+			//END DEBUG
+			if(threshold < min_threshold)
+				min_threshold = threshold;
+		}
+		thresholds[chno] = min_threshold;
+		delete[] normalized_histogram;
+	}
+	
+	this->setThresholds(thresholds);	
 }
 
 void My4DImage::setupDefaultColorChannelMapping() //20100824, PHC
@@ -3304,11 +3337,17 @@ void My4DImage::saveLandmarkToFile()
 	fprintf(fp, "#x, y, z, radius, shape, name, comment\n"); //081209: change the first line as comment
 	for (int i=0;i<listLandmarks.count(); i++)
 	{
-		fprintf(fp, "%ld,%ld,%ld,%ld,%ld,%s,%s\n",
+		/*fprintf(fp, "%ld,%ld,%ld,%ld,%ld,%s,%s\n",
 				V3DLONG(listLandmarks.at(i).x), V3DLONG(listLandmarks.at(i).y), V3DLONG(listLandmarks.at(i).z),
 				V3DLONG(listLandmarks.at(i).radius), V3DLONG(listLandmarks.at(i).shape),
+				listLandmarks.at(i).name.c_str(), listLandmarks.at(i).comments.c_str());*/
+ 		char* oldLocale = setlocale(LC_NUMERIC, "C");	
+		fprintf(fp, "%4.3f,%4.3f,%4.3f,%ld,%ld,%s,%s\n",
+				listLandmarks.at(i).x, listLandmarks.at(i).y, listLandmarks.at(i).z,
+				V3DLONG(listLandmarks.at(i).radius), V3DLONG(listLandmarks.at(i).shape),
 				listLandmarks.at(i).name.c_str(), listLandmarks.at(i).comments.c_str());
-	}
+		setlocale(LC_NUMERIC, oldLocale);
+        }
 
 	fclose(fp);
 }
@@ -5606,3 +5645,83 @@ bool pointInPolygon(double x, double y, const QPolygon & pg) //use the algorithm
 	return oddNodes;
 }
 
+/*++++++++++++++++++++++++++++++++++++TEST++++++++++++++++++++++++++++++*/
+
+std::vector<std::vector<int> > compute_intervals(int n_divisions, int min_t, int max_t){
+	std::vector<std::vector<int> > intervals;
+	if(n_divisions == 1)
+		for(int n=min_t+1;n<max_t;n++){
+			std::vector<int> last;
+			last.push_back(n);
+			intervals.push_back(last);
+		}
+	else{
+		for(int n=min_t+1;n<max_t-n_divisions+1;n++){
+			std::vector<std::vector<int> > sub_intervals = compute_intervals(n_divisions-1, n, max_t);
+			for(std::vector<std::vector<int> >::iterator it = sub_intervals.begin();it != sub_intervals.end();it++){
+				std::vector<int> to_be_pushed;
+				std::vector<int> sub_interval = *it;
+				to_be_pushed.push_back(n);
+				to_be_pushed.insert(to_be_pushed.end(), sub_interval.begin(), sub_interval.end());
+				intervals.push_back(to_be_pushed);
+			}
+		}
+	}
+	return intervals;
+}
+
+
+double compute_interval_entropy(double * normalized_histogram, int begin, int end){	
+	double sum = 0;
+	for(int i=begin;i<end;i++)
+		sum += normalized_histogram[i];
+	double entropy = 0;
+	if(sum > 0)
+		for(int i=begin;i<end;i++)
+			if(normalized_histogram[i] > 0)
+				entropy -= (normalized_histogram[i]/sum)*log(normalized_histogram[i]/sum);	
+	return entropy;
+}
+
+std::vector<int> multi_kapur(double * normalized_histogram, const int gray_levels, int n_divisions){
+	///////////////DEBUG
+	//double sum = 0;
+	//for(int i=0;i<gray_levels;i++){
+	//	qDebug("%d-th histogram is %f", i, normalized_histogram[i]);
+	//	sum += normalized_histogram[i];
+	//}
+	//qDebug("sum of histogram is %f", sum);
+	//////////END DEBUG
+	
+	int min_t = 0;
+	int max_t = gray_levels;
+	
+	std::vector<std::vector<int> > intervals = compute_intervals(n_divisions, min_t, max_t);
+	
+	double best_entropy = -1e50;
+	std::vector<int> best_interval;
+	
+	for(std::vector<std::vector<int> >::iterator it = intervals.begin();it != intervals.end();it++){
+		std::vector<int> interval = *it;
+		double entropy = 0;
+		int last_t = min_t;
+		for(std::vector<int>::iterator jt = interval.begin();jt != interval.end();jt++){
+			int t = *jt;
+			entropy += compute_interval_entropy(normalized_histogram, last_t, t);
+			last_t = t;
+		}
+		entropy += compute_interval_entropy(normalized_histogram, last_t, max_t);
+		if(best_entropy < entropy){
+			best_entropy = entropy;
+			best_interval = interval;
+		}
+	}
+	
+	///////////////DEBUG
+	//for(std::vector<int>::iterator it = best_interval.begin();it != best_interval.end();it++){
+	//	qDebug("intervals are %d", *it);
+	//}
+	//////////END DEBUG
+	
+	return best_interval;
+}

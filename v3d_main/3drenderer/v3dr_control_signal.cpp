@@ -87,6 +87,43 @@ void V3dR_MainWindow::createControlWidgets()
     layout_toolBtnGroup->addWidget(volumeColormapButton);
     layout_toolBtnGroup->addWidget(surfobjManagerButton);
 
+//#define __cylinder_radius_box__
+	////===========================================================================================
+	//QWidget *radiusBoxGroup = new QWidget;
+	//QHBoxLayout *layout_radiusBoxGroup = new QHBoxLayout(radiusBoxGroup);
+	//layout_radiusBoxGroup->addWidget(new QLabel("Radius"));
+	//cylinderRadiusBox = createCylinderRadiusSpinBox();
+	//cylinderRadiusBox->setToolTip("Radius for the mean shift cylinder in 1-right click to define a marker");
+	//layout_radiusBoxGroup->addWidget(cylinderRadiusBox);
+//
+//#define __bandwidth_box__
+	////===========================================================================================
+	//QWidget *bandwidthBoxGroup = new QWidget;
+	//QHBoxLayout *layout_bandwidthBoxGroup = new QHBoxLayout(bandwidthBoxGroup);
+	//layout_bandwidthBoxGroup->addWidget(new QLabel("Bandwidth"));
+	//bandwidthBox = createBandwidthSpinBox();
+	//bandwidthBox->setToolTip("Bandwidth for the mean shift kernel in 1-right click to define a marker");
+	//layout_bandwidthBoxGroup->addWidget(bandwidthBox);
+	//
+//#define __use_local_threshold_box__
+	////===========================================================================================
+	//QWidget *useLocalThresholdBoxGroup = new QWidget;
+	//QHBoxLayout *layout_useLocalThresholdBoxGroup = new QHBoxLayout(useLocalThresholdBoxGroup);
+	//layout_useLocalThresholdBoxGroup->addWidget(new QLabel("Use local threshold"));
+	//checkBox_useLocalThreshold = new QCheckBox(useLocalThresholdBoxGroup);
+	//checkBox_useLocalThreshold->setToolTip("If checked, it uses threshold computed inside the cylinder in 1-right click to define a marker");
+	//layout_useLocalThresholdBoxGroup->addWidget(checkBox_useLocalThreshold);
+//
+//
+//#define __offset_box__
+	////===========================================================================================
+	//QWidget *offsetBoxGroup = new QWidget;
+	//QHBoxLayout *layout_offsetBoxGroup = new QHBoxLayout(offsetBoxGroup);
+	//layout_offsetBoxGroup->addWidget(new QLabel("Offset"));
+	//offsetBox = createOffsetSpinBox();
+	//offsetBox->setToolTip("offset to hide markers");
+	//layout_offsetBoxGroup->addWidget(offsetBox);
+
 
 #define __volume_display_option_box__
 	//------------------------------------------------------------------------------
@@ -350,6 +387,55 @@ void V3dR_MainWindow::createControlWidgets()
 
 	zoomBarBoxLayout->addWidget(zoomReset, 1, (21-9)/2, 1, 9);
 
+#define __one_click_box__
+	//------------------------------------------------------------------------
+    // one_click box
+
+    QWidget *oneclickBarGroup = new QWidget;
+    //QGroupBox *zoomBarGroup = new QGroupBox();
+    //zoomBarGroup->setTitle("Zoom && Shift");
+	QVBoxLayout *oneclickBarBoxLayout = new QVBoxLayout(oneclickBarGroup);
+
+	//===========================================================================================
+	QWidget *radiusBoxGroup = new QWidget;
+	QHBoxLayout *layout_radiusBoxGroup = new QHBoxLayout(radiusBoxGroup);
+	layout_radiusBoxGroup->addWidget(new QLabel("Radius"));
+	cylinderRadiusBox = createCylinderRadiusSpinBox();
+	cylinderRadiusBox->setToolTip("Radius for the mean shift cylinder in 1-right click to define a marker");
+	layout_radiusBoxGroup->addWidget(cylinderRadiusBox);
+
+	//===========================================================================================
+	QWidget *bandwidthBoxGroup = new QWidget;
+	QHBoxLayout *layout_bandwidthBoxGroup = new QHBoxLayout(bandwidthBoxGroup);
+	layout_bandwidthBoxGroup->addWidget(new QLabel("Bandwidth"));
+	bandwidthBox = createBandwidthSpinBox();
+	bandwidthBox->setToolTip("Bandwidth for the mean shift kernel in 1-right click to define a marker");
+	layout_bandwidthBoxGroup->addWidget(bandwidthBox);
+	
+	//===========================================================================================
+	QWidget *useLocalThresholdBoxGroup = new QWidget;
+	QHBoxLayout *layout_useLocalThresholdBoxGroup = new QHBoxLayout(useLocalThresholdBoxGroup);
+	layout_useLocalThresholdBoxGroup->addWidget(new QLabel("Use local threshold"));
+	checkBox_useLocalThreshold = new QCheckBox(useLocalThresholdBoxGroup);
+	checkBox_useLocalThreshold->setToolTip("If checked, it uses threshold computed inside the cylinder in 1-right click to define a marker");
+	layout_useLocalThresholdBoxGroup->addWidget(checkBox_useLocalThreshold);
+
+	//===========================================================================================
+	QWidget *offsetBoxGroup = new QWidget;
+	QHBoxLayout *layout_offsetBoxGroup = new QHBoxLayout(offsetBoxGroup);
+	layout_offsetBoxGroup->addWidget(new QLabel("Offset"));
+	offsetBox = createOffsetSpinBox();
+	offsetBox->setToolTip("offset to hide markers");
+	layout_offsetBoxGroup->addWidget(offsetBox);
+
+
+	
+	oneclickBarBoxLayout->addWidget(radiusBoxGroup);
+	oneclickBarBoxLayout->addWidget(bandwidthBoxGroup);
+	oneclickBarBoxLayout->addWidget(useLocalThresholdBoxGroup);
+	oneclickBarBoxLayout->addWidget(offsetBoxGroup);
+	oneclickBarBoxLayout->addStretch(0);
+	oneclickBarBoxLayout->setSpacing(0);
 
 
 	//=============================================================================
@@ -358,9 +444,11 @@ void V3dR_MainWindow::createControlWidgets()
 	tabRotZoom = new QTabWidget();//tabRotZoom = new AutoTabWidget(); //commented by PHC, 090117
 	tabRotZoom->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 	i= tabRotZoom->addTab(rotateBarGroup, "Rotation");
-    i= tabRotZoom->addTab(zoomBarGroup,   "Zoom && Shift");
-	tabRotZoom->setTabToolTip(0, "Rotation");
-    tabRotZoom->setTabToolTip(1, "Zoom & Shift");
+        i= tabRotZoom->addTab(zoomBarGroup,   "Zoom && Shift");
+        i= tabRotZoom->addTab(oneclickBarGroup,   "One Click");
+        tabRotZoom->setTabToolTip(0, "Rotation");
+        tabRotZoom->setTabToolTip(1, "Zoom & Shift");
+        tabRotZoom->setTabToolTip(2, "One Click");
 
     //=============================================================================
 
@@ -738,6 +826,20 @@ void V3dR_MainWindow::connectSignal()
 	qDebug("V3dR_MainWindow::connectSignal with V3dR_GLWidget");
 	if (!glWidget)	return;
 
+#define __connect_cylinder_radius__
+	if(cylinderRadiusBox){
+		connect(cylinderRadiusBox, SIGNAL(valueChanged(double)), glWidget, SLOT(setRadius(double)));
+	}
+
+#define __connect_bandwidth__
+	if(bandwidthBox){
+		connect(bandwidthBox, SIGNAL(valueChanged(double)), glWidget, SLOT(setBandwidth(double)));
+	}
+
+#define __connect_offset__
+	if(offsetBox){
+		connect(offsetBox, SIGNAL(valueChanged(double)), glWidget, SLOT(setOffset(double)));
+	}
 
 #define __connect_volume__
 	//volume display option box ///////////////////////////////////
@@ -786,6 +888,9 @@ void V3dR_MainWindow::connectSignal()
 	}
 	if (zthicknessBox) {
 		connect(zthicknessBox, SIGNAL(valueChanged(double)), glWidget, SLOT(setThickness(double)));
+	}
+	if (checkBox_useLocalThreshold) {
+		connect(checkBox_useLocalThreshold, SIGNAL(toggled(bool)), glWidget, SLOT(setUseLocalThreshold(bool)));
 	}
 	if (checkBox_channelR) {
 		connect(checkBox_channelR, SIGNAL(toggled(bool)), glWidget, SLOT(setChannelR(bool)));
@@ -1135,6 +1240,9 @@ void V3dR_MainWindow::initControlValue()
 		//v3d_msg(QString("set the default 3d viewer widget zthickness %1\n").arg(zthicknessBox->value()), 0);
 	}
 
+	if (checkBox_useLocalThreshold)	{
+		checkBox_useLocalThreshold->setChecked(false);
+	}
 	if (checkBox_channelR)	{
 		checkBox_channelR->setChecked(true);
 	}
@@ -1590,6 +1698,34 @@ QDoubleSpinBox *V3dR_MainWindow::createThicknessSpinBox()
     box->setSingleStep(1.0);
     box->setValue(1.0);
 	box->setPrefix("x");
+	return box;
+}
+
+QDoubleSpinBox *V3dR_MainWindow::createCylinderRadiusSpinBox()
+{
+	QDoubleSpinBox *box = new QDoubleSpinBox;
+	box->setRange(MIN_CYLINDER_RADIUS, MAX_CYLINDER_RADIUS);
+	box->setSingleStep(1.0);
+	box->setValue(6.0);
+	return box;
+}
+
+QDoubleSpinBox *V3dR_MainWindow::createBandwidthSpinBox()
+{
+	QDoubleSpinBox *box = new QDoubleSpinBox;
+	box->setRange(MIN_BANDWIDTH, MAX_BANDWIDTH);
+	box->setSingleStep(1.0);
+	box->setValue(3.0);
+	return box;
+}
+
+
+QDoubleSpinBox *V3dR_MainWindow::createOffsetSpinBox()
+{
+	QDoubleSpinBox *box = new QDoubleSpinBox;
+	box->setRange(MIN_OFFSET, MAX_OFFSET);
+	box->setSingleStep(1.0);
+	box->setValue(5.0);
 	return box;
 }
 
