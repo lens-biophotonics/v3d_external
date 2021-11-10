@@ -362,6 +362,7 @@ FORMS += \
 
 INCLUDEPATH = $$unique(INCLUDEPATH)
 #LIBS = $$unique(LIBS)  # @FIXED by Alessandro on 2015-05-11. Proven buggy on Qt 4.7.1/MacOSX10.10 since it removed some -framework from LIBS.
+LIBS += -no-pie
 message(CONFIG=$$CONFIG)
 message(DEFINES=$$DEFINES)
 
