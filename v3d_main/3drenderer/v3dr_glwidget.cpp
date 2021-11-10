@@ -1288,6 +1288,11 @@ void V3dR_GLWidget::handleKeyPressEvent(QKeyEvent * e)  //090428 RZC: make publi
             {
                 callStrokeDeleteMultiNeurons();//For multiple segments deleting shortcut, by ZZ,02212018
             }
+            else if (IS_CTRL_MODIFIER)
+            {
+                if (renderer) renderer->deleteLastMarker();
+
+			}
 			else
 			{
 				// delete connected segments that have been highlighted, MK, July, 2018
@@ -1596,14 +1601,6 @@ void V3dR_GLWidget::handleKeyPressEvent(QKeyEvent * e)  //090428 RZC: make publi
 				}
 			}
 	  		break;
-
-	  case Qt::Key_D:
-		if (IS_CTRL_MODIFIER)
-			 {
-			    	if (renderer) renderer->deleteLastMarker();
-
-			}
-			break;
 
 #ifndef test_main_cpp
         case Qt::Key_Z:
