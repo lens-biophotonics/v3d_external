@@ -163,6 +163,9 @@ public:
 	QAbstractSlider *createTranparentSlider(Qt::Orientation hv = Qt::Horizontal);
 	QAbstractSlider *createThicknessSlider(Qt::Orientation hv = Qt::Horizontal);
 	QDoubleSpinBox *createThicknessSpinBox();
+	QDoubleSpinBox *createCylinderRadiusSpinBox();
+	QDoubleSpinBox *createBandwidthSpinBox();
+	QDoubleSpinBox *createOffsetSpinBox();
 	QComboBox *createChannelComboBox();
 	QSpinBox *createMarkerSizeSpinBox();
 	QSpinBox *createRotateSpinBox();
@@ -188,9 +191,13 @@ public:
 	QRadioButton *dispType_maxip, *dispType_minip, *dispType_alpha, *dispType_cs3d;
 	QLabel *thicknessSlider_Label, *transparentSlider_Label; //for disable, by RZC 080822
 	QDoubleSpinBox *zthicknessBox; //by PHC, 090215
+	QDoubleSpinBox *cylinderRadiusBox;
+	QDoubleSpinBox *bandwidthBox;
+	QDoubleSpinBox *offsetBox;
 	QComboBox *comboBox_channel;
     QAbstractSlider *thicknessSlider, *transparentSlider;
     QCheckBox *checkBox_channelR, *checkBox_channelG, *checkBox_channelB, *checkBox_channelA, *checkBox_volCompress;
+    QCheckBox *checkBox_useLocalThreshold;
     QPushButton *volumeColormapButton;
 
     // surface display control
@@ -243,9 +250,13 @@ public:
 	    dispType_minip=dispType_maxip=dispType_alpha=dispType_cs3d=0;
 		thicknessSlider_Label=transparentSlider_Label=0;
 		transparentSlider=0;
-	    thicknessSlider=0; zthicknessBox=0;
-	    comboBox_channel=0;
+		thicknessSlider=0; zthicknessBox=0;
+		cylinderRadiusBox = 0;
+		bandwidthBox = 0;
+		offsetBox = 0;
+		comboBox_channel=0;
 		checkBox_channelR=checkBox_channelG=checkBox_channelB=checkBox_channelA=checkBox_volCompress=0;
+		checkBox_useLocalThreshold = 0;
 	    volumeColormapButton=0;
 
 	    checkBox_displayMarkers=checkBox_displaySurf=checkBox_markerLabel=checkBox_surfStretch=0;

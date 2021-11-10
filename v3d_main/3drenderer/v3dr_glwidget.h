@@ -217,8 +217,18 @@ public slots:
 
 	virtual void setCSTransparent(int);
 	virtual void setThickness(double);
+	virtual void setRadius(double);
+	virtual double getRadius();
+	virtual void setBandwidth(double);
+	virtual double getBandwidth();
+	virtual void setOffset(double);
+	virtual double getOffset();
+	virtual void setLookUpTable();
+	virtual bool * getLookUpTable();
 	virtual void setCurChannel(int);
 
+	virtual void setUseLocalThreshold(bool b);
+	virtual bool getUseLocalThreshold();
 	virtual void setChannelR(bool b);
 	virtual void setChannelG(bool b);
 	virtual void setChannelB(bool b);
@@ -426,6 +436,11 @@ public:
 	int _xClip0, _xClip1, _yClip0, _yClip1, _zClip0, _zClip1;
 	int _CStransparency, _markerSize, _curChannel;
 	float _thickness;
+	double _radius;
+	double _bandwidth;
+	double _offset;
+	bool * _lookUpTable;
+	bool _useLocalThreshold;
 	int _Bright, _Contrast, sUpdate_bright, sUpdate_track;
 	bool _showAxes, _showBoundingBox, _absRot, _orthoView;
 	bool _volCompress, _volFilter;
@@ -460,6 +475,12 @@ public:
 		_xCS=_yCS=_zCS=
 		_xClip0=_xClip1=_yClip0=_yClip1=_zClip0=_zClip1 =0;
 		_thickness =1;
+		_radius = 6.0;
+		_bandwidth = 3.0;
+		_offset = 5.0;
+		_lookUpTable = new bool[(2*int(_bandwidth+0.5) + 1)*(2*int(_bandwidth+0.5) + 1)*(2*int(_bandwidth+0.5) + 1)];
+		setLookUpTable();
+		_useLocalThreshold = 0;
 		_CStransparency=0; _markerSize=1, _curChannel=-1;
 
 		_Bright=_Contrast=sUpdate_bright=sUpdate_track=0;

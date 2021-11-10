@@ -985,6 +985,14 @@ void V3dR_GLWidget::handleKeyPressEvent(QKeyEvent * e)  //090428 RZC: make publi
               }
 	  		break;
 
+	  case Qt::Key_D:
+		if (IS_CTRL_MODIFIER)
+			 {
+			    	if (renderer) renderer->deleteLastMarker();
+
+			}
+			break;
+
 #ifndef test_main_cpp
 		case Qt::Key_Z: //undo the last tracing step if possible. by PHC, 090120
 		    if (IS_CTRL_MODIFIER)
@@ -993,7 +1001,7 @@ void V3dR_GLWidget::handleKeyPressEvent(QKeyEvent * e)  //090428 RZC: make publi
 		    	{
 		    		v3dr_getImage4d(_idep)->proj_trace_history_undo();
 		    		v3dr_getImage4d(_idep)->update_3drenderer_neuron_view(this, (Renderer_gl1*)renderer);//090924
-		    	}
+			}
 			}
 	  		break;
 		case Qt::Key_X: //090924 RZC: redo
@@ -1189,7 +1197,60 @@ void V3dR_GLWidget::setThickness(double t) //added by PHC, 090215
 		POST_updateGL();
 	}
 }
-
+void V3dR_GLWidget::setRadius(double r)
+{
+	if(_radius != r){
+		_radius = CLAMP(MIN_CYLINDER_RADIUS, MAX_CYLINDER_RADIUS, r);
+		if(renderer) renderer->setRadius(_radius);
+	}
+}
+double V3dR_GLWidget::getRadius()
+{
+	double retValue = 0;
+	if (renderer) retValue = renderer->getRadius();
+	return retValue;
+}
+void V3dR_GLWidget::setBandwidth(double r)
+{
+	if(_bandwidth != r){
+		_bandwidth = CLAMP(MIN_BANDWIDTH, MAX_BANDWIDTH, r);
+		if(renderer) renderer->setBandwidth(_bandwidth);
+		
+		this->setLookUpTable();
+	}
+}
+double V3dR_GLWidget::getBandwidth()
+{
+	double retValue = 0;
+	if (renderer) retValue = renderer->getBandwidth();
+	return retValue;
+}
+void V3dR_GLWidget::setOffset(double r)
+{
+	if(_offset != r){
+		_offset = CLAMP(MIN_OFFSET, MAX_OFFSET, r);
+		if(renderer) renderer->setOffset(_offset);
+		if(renderer) renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
+		
+		this->setLookUpTable();
+	}
+}
+double V3dR_GLWidget::getOffset()
+{
+	double retValue = 0;
+	if (renderer) retValue = renderer->getOffset();
+	return retValue;
+}
+void V3dR_GLWidget::setLookUpTable()
+{
+	if (renderer) renderer->setLookUpTable();
+}
+bool * V3dR_GLWidget::getLookUpTable()
+{
+	bool * retValue = 0;
+	if (renderer) retValue = renderer->getLookUpTable();
+	return retValue;
+}
 void V3dR_GLWidget::setCurChannel(int t) //100802
 {
 	if (_curChannel != t) {
@@ -1199,6 +1260,15 @@ void V3dR_GLWidget::setCurChannel(int t) //100802
 	}
 }
 
+void V3dR_GLWidget::setUseLocalThreshold(bool s)
+{
+	if(renderer) renderer->setUseLocalThreshold(s);
+}
+bool V3dR_GLWidget::getUseLocalThreshold(){
+	bool retValue = 0;
+	if(renderer) retValue = renderer->getUseLocalThreshold();
+	return retValue;
+}
 void V3dR_GLWidget::setChannelR(bool s)
 {
 	if (renderer)
@@ -1810,6 +1880,7 @@ void V3dR_GLWidget::setXCut0(int s)
 		if (_xCut0+dxCut>_xCut1)	setXCut1(_xCut0+dxCut); //081029,100913
 		if (lockX && _xCut0+dxCut<_xCut1)	setXCut1(_xCut0+dxCut); //100913, 110713
 		emit changeXCut0(s);
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }
@@ -1825,12 +1896,14 @@ void V3dR_GLWidget::setXCut1(int s)
 		if (_xCut0>_xCut1-dxCut)	setXCut0(_xCut1-dxCut);
 		if (lockX && _xCut0<_xCut1-dxCut)	setXCut0(_xCut1-dxCut); //100913,110713
 		emit changeXCut1(s);
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }
 
 void V3dR_GLWidget::setYCut0(int s)
 {
+
 	if (_yCut0 != s) {
 		int DY = MAX(0, dataDim2()-1);
 		if (s+dyCut>DY)  s = DY-dyCut;
@@ -1841,6 +1914,8 @@ void V3dR_GLWidget::setYCut0(int s)
 		if (_yCut0+dyCut>_yCut1)	setYCut1(_yCut0+dyCut);
 		if (lockY && _yCut0+dyCut<_yCut1)	setYCut1(_yCut0+dyCut);
 		emit changeYCut0(s);
+	
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }
@@ -1856,6 +1931,7 @@ void V3dR_GLWidget::setYCut1(int s)
 		if (_yCut0>_yCut1-dyCut)	setYCut0(_yCut1-dyCut);
 		if (lockY && _yCut0<_yCut1-dyCut)	setYCut0(_yCut1-dyCut);
 		emit changeYCut1(s);
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }
@@ -1872,6 +1948,7 @@ void V3dR_GLWidget::setZCut0(int s)
 		if (_zCut0+dzCut>_zCut1)	setZCut1(_zCut0+dzCut);
 		if (lockZ && _zCut0+dzCut<_zCut1)	setZCut1(_zCut0+dzCut);
 		emit changeZCut0(_zCut0);
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }
@@ -1887,6 +1964,7 @@ void V3dR_GLWidget::setZCut1(int s)
 		if (_zCut0>_zCut1-dzCut)	setZCut0(_zCut1-dzCut);
 		if (lockZ && _zCut0<_zCut1-dzCut)	setZCut0(_zCut1-dzCut);
 		emit changeZCut1(_zCut1);
+		if (renderer)	renderer->showLandmark(_xCut0,_xCut1,_yCut0,_yCut1,_zCut0,_zCut1); 
 		POST_updateGL();
 	}
 }

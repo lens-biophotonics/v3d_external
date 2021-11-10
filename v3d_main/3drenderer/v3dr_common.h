@@ -89,6 +89,12 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 #define CLIP_RANGE  200 		//size of (-100,100)
 #define ZTHICK_RANGE 20			//times
 #define TRANSPARENT_RANGE 100   //nonlinear divided
+#define MAX_CYLINDER_RADIUS 500
+#define MAX_BANDWIDTH 50
+#define MIN_CYLINDER_RADIUS 0
+#define MIN_BANDWIDTH 1
+#define MAX_OFFSET 50
+#define MIN_OFFSET 0
 
 #define POPMENU_OPACITY 1
 

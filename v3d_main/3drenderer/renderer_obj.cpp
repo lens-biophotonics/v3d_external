@@ -267,6 +267,59 @@ void Renderer_gl1::setThickness(double t)
 	thicknessZ = t;
 	updateThicknessBox();
 }
+void Renderer_gl1::setRadius(double r)
+{
+	radius = r;
+}
+double Renderer_gl1::getRadius()
+{
+	return radius;
+}
+void Renderer_gl1::setBandwidth(double r)
+{
+	bandwidth = r;
+}
+double Renderer_gl1::getBandwidth()
+{
+	return bandwidth;
+}
+void Renderer_gl1::setOffset(double r)
+{
+	offset  = r;
+}
+double Renderer_gl1::getOffset()
+{
+	return offset;
+}
+void Renderer_gl1::setLookUpTable()
+{
+	if(lookUpTable != 0){
+		delete[] lookUpTable;
+		lookUpTable = 0;
+	}
+	
+	int bw = int(bandwidth+0.5);
+	lookUpTable = new bool[(2*bw + 1)*(2*bw + 1)*(2*bw + 1)];
+	
+	for(int i = -bw;i<=bw;i++){
+		for(int j = -bw;j<=bw;j++){
+			for(int k = -bw;k<=bw;k++){
+				lookUpTable[(2*bw + 1)*(2*bw + 1)*(i+bw) + (2*bw + 1)*(j+bw) + (k+bw)] = (i*i + j*j + k*k) <= bw*bw;
+			}
+		}
+	}
+}
+bool * Renderer_gl1::getLookUpTable()
+{
+	return lookUpTable;
+}
+void Renderer_gl1::setUseLocalThreshold(bool s)
+{
+	useLocalThreshold = s;
+}
+bool Renderer_gl1::getUseLocalThreshold(){
+	return useLocalThreshold;
+}
 void Renderer_gl1::updateThicknessBox()
 {
 	if (has_image())
@@ -653,6 +706,65 @@ void Renderer_gl1::updateLandmark()
 	}
 #endif
 }
+
+
+void Renderer_gl1::showLandmark(int XCut0, int XCut1, int YCut0, int YCut1, int ZCut0, int ZCut1)
+{
+	//qDebug("  Renderer_gl1::updateLandmark");
+#ifndef test_main_cpp
+	My4DImage* image4d = v3dr_getImage4d(_idep);
+	if (image4d)
+	{
+		QList <LocationSimple> listLoc = image4d->listLandmarks;
+		listMarker.clear();
+		qDebug("\t Offset = %f", offset);
+		for (int i=0; i<listLoc.size(); i++)
+		{
+			ImageMarker S;
+	        //memset(&S, 0, sizeof(S)); //this will make QString member to crash . 090219 by PHC.
+			S.n = i;
+			S.type = listLoc[i].inputProperty;
+			S.shape = listLoc[i].shape;
+			S.x = listLoc[i].x;
+			S.y = listLoc[i].y;
+			S.z = listLoc[i].z;
+			S.color = listLoc[i].color;  //random_rgba8(255);
+			//std::cout<<S.x<<" "<<S.y<<" "<<S.z<<" "<<XCut0<<" "<<XCut1<<" "<<YCut0<<" "<<YCut1<<" "<<ZCut0<<" "<<ZCut1<<"\n";
+			
+			if (listLoc[i].x >= XCut0 - offset && listLoc[i].x <= XCut1 + offset && 
+				listLoc[i].y >= YCut0 - offset && listLoc[i].y <= YCut1 + offset && 
+				listLoc[i].z >= ZCut0 - offset && listLoc[i].z <= ZCut1 + offset) 
+				S.on = true;
+			else
+				S.on = false;		 //listLoc[i].on;        //090713 RZC: the state synchronization is hard
+			S.selected = false; //added because the memset() is got commented
+			//S.pn = 0; //added because the memset() is got commented
+			S.name = listLoc[i].name.c_str();
+			S.comment = listLoc[i].comments.c_str();
+			listMarker.append(S);
+		}
+	}
+#endif
+}
+
+
+void Renderer_gl1::deleteLastMarker()
+{
+	My4DImage* image4d = v3dr_getImage4d(_idep);
+	
+	if (image4d)
+	{
+		//int last_index = image4d->last_hit_landmark;
+		int last_index =  image4d->listLandmarks.size()-1;
+		image4d->last_hit_landmark = -1;
+                image4d->listLandmarks.removeAt(last_index); //remove the specified landmark
+                listMarker.removeAt(last_index);
+
+	}
+
+}
+
+
 void Renderer_gl1::drawMarkerList()
 {
 	//qDebug("    Renderer_gl1::drawMarkerList");

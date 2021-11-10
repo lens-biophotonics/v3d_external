@@ -824,7 +824,7 @@ int Renderer_gl1::processHit(int namelen, int names[], int cx, int cy, bool b_me
 		b_addthiscurve = true;
 		cntCur3DCurveMarkers=0; //reset
 		//if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(Qt::PointingHandCursor)); }
-		if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(Qt::CrossCursor)); }
+                if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(Qt::CrossCursor)); }
         total_etime = 0; //reset the timer
 	}
 	else if (act == actCurveCreateMarkerGD)
@@ -961,8 +961,13 @@ int Renderer_gl1::processHit(int namelen, int names[], int cx, int cy, bool b_me
 	{
 		selectMode = smMarkerCreate1;
 		b_addthismarker = true;
-		if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(Qt::CrossCursor)); }
-        total_etime = 0; //reset the timer
+		//if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(Qt::CrossCursor)); }
+		QPixmap pix("../custom_cursors/mirino.bmp");
+		pix.setMask(pix.createMaskFromColor(QColor(255, 255, 255), Qt::MaskOutColor));
+		//pix.setMask(QBitmap(QPixmap("/home/marco/Pictures/mirino_mask.bmp")));
+		//QCursor customCursor(QPixmap("/home/marco/Pictures/mirino.bmp"));
+                if (w) { oldCursor = w->cursor(); w->setCursor(QCursor(pix)); }
+               total_etime = 0; //reset the timer
 	}
 	else if (act == actMarkerCreate2)
 	{
@@ -3344,21 +3349,44 @@ XYZ Renderer_gl1::getCenterOfMarkerPos(const MarkerPos& pos, int defaultChanno)
 	ViewPlaneToModel(pos.MV, clipplane);
 	//qDebug()<<"   clipplane:"<<clipplane[0]<<clipplane[1]<<clipplane[2]<<clipplane[3];
 	////////////////////////////////////////////////////////////////////////
+	V3dR_GLWidget* w = (V3dR_GLWidget*)widget;
+	double radius = w->getRadius();
+	
 	XYZ loc0, loc1;
 	_MarkerPos_to_NearFarPoint(pos, loc0, loc1);
 	// qDebug("	loc0--loc1: (%g, %g, %g)--(%g, %g, %g)", loc0.x,loc0.y,loc0.z, loc1.x,loc1.y,loc1.z);
 	XYZ loc;
 	if (chno>=0 && chno<dim4)
 	{
-		loc = getCenterOfLineProfile(loc0, loc1, clipplane, chno);
+		//Do we need to check if radius is negative? I think one can't set it to negative values...
+		if(radius == 0) loc = getCenterOfLineProfile(loc0, loc1, clipplane, chno);
+		else{
+			try{
+				loc = getCenterOfLineProfileExtended(loc0, loc1, clipplane, chno);
+			}
+			catch(int i){
+				if(i == 1) throw 2;
+			}
+		}
 	}
 	else //find max value location in all channels
 	{
 		float maxval, curval;
+		int catched = 0;
         for (int ichno=0; ichno<dim4; ichno++)
 		{
-            XYZ curloc = getCenterOfLineProfile(loc0, loc1, clipplane, ichno, &curval);
-            if (ichno==0)
+			XYZ curloc;
+			//Do we need to check if radius is negative? I think one can't set it to negative values...
+			if(radius == 0) curloc = getCenterOfLineProfile(loc0, loc1, clipplane, ichno, &curval);
+			else{
+				try{
+					curloc = getCenterOfLineProfileExtended(loc0, loc1, clipplane, ichno, &curval);
+				}
+				catch(int i){
+					if(i == 1) catched++;
+				}
+			}
+			if (ichno==0)
 			{
 				maxval = curval;
 				loc = curloc;
@@ -3370,6 +3398,7 @@ XYZ Renderer_gl1::getCenterOfMarkerPos(const MarkerPos& pos, int defaultChanno)
 				loc = curloc;
 			}
 		}
+		if(catched == dim4) throw 2;
 	}
 	return loc;
 }
@@ -3379,7 +3408,17 @@ double Renderer_gl1::solveMarkerCenter()
     t.start();
 	if (listMarkerPos.size()<1)  return t.elapsed();
 	const MarkerPos & pos = listMarkerPos.at(0);
-	XYZ loc = getCenterOfMarkerPos(pos);
+	XYZ loc;
+	try{
+		loc = getCenterOfMarkerPos(pos);
+	}
+	catch(int i){
+		if(i == 2){
+			cout << "\7" << endl;
+			qDebug("No candidate seeds found in no channel. No marker added. Why this?");
+			return t.elapsed();
+		}
+	}
 	vector <XYZ> loc_vec;
 	if (dataViewProcBox.isInner(loc, 0.5)) //100725 RZC
 		dataViewProcBox.clamp(loc); //100722 RZC
@@ -3435,7 +3474,17 @@ void Renderer_gl1::refineMarkerCenter()
 	if (currentMarkerName<1 || currentMarkerName>listMarker.size())  return;
 	if (listMarkerPos.size()<1)  return;
 	const MarkerPos & pos = listMarkerPos.at(0);
-	XYZ loc = getCenterOfMarkerPos(pos);
+	XYZ loc;
+	try{
+		loc = getCenterOfMarkerPos(pos);
+	}
+	catch(int i){
+		if(i == 2){
+			cout << "\7" << endl;
+			qDebug("No candidate seeds found in no channel. No marker added. Why this?");
+			return;
+		}
+	}
 	//added by PHC, 090120. update the marker location in both views
 	updateMarkerLocation(currentMarkerName-1, loc);
 }
@@ -3467,7 +3516,8 @@ void Renderer_gl1::addMarker(XYZ &loc)
 		S.color = random_rgba8(255);
 		S.on = true;
 		listLoc.append(S);
-		updateLandmark();
+		//updateLandmark();
+		showLandmark(w->xCut0(),w->xCut1(),w->yCut0(),w->yCut1(),w->zCut0(),w->zCut1());
 	}
 #else
 	ImageMarker S;
@@ -3714,6 +3764,7 @@ XYZ Renderer_gl1::getCenterOfLineProfile(XYZ P1, XYZ P2,
 		float *p_value			//if p_value!=0, output value at center
 		)
 {
+	//qDebug("Executing line method for single click 3D pinpointing");
 	if (renderMode==rmCrossSection)
 	{
 		return getPointOnSections(P1,P2, clipplane); //clip plane also is the F-plane
@@ -3807,6 +3858,426 @@ XYZ Renderer_gl1::getCenterOfLineProfile(XYZ P1, XYZ P2,
 	return loc;
 }
 
+//TODO: coherently rename the function, no more line but cylinder
+XYZ Renderer_gl1::getCenterOfLineProfileExtended(XYZ P1, XYZ P2,
+		double clipplane[4],	//clipplane==0 means no clip plane
+		int chno,    			//must be a valid channel number
+		float *p_value			//if p_value!=0, output value at center
+)
+{
+	qDebug("Executing cylinder method for single click 3D pinpointing");
+	//Legacy
+	if (renderMode==rmCrossSection)
+	{
+		return getPointOnSections(P1,P2, clipplane); //clip plane also is the F-plane
+	}
+	XYZ loc = (P1+P2)*0.5;
+#ifndef test_main_cpp
+	V3dR_GLWidget* w = (V3dR_GLWidget*)widget;
+	My4DImage* curImg = v3dr_getImage4d(_idep);
+	QCursor localOldCursor;
+	
+	if(w){
+		localOldCursor = w->cursor();
+		w->setCursor(QCursor(Qt::WaitCursor));
+	}
+
+	if (curImg && data4dp && chno>=0 &&  chno <dim4)
+	{
+		XYZ D = P2-P1;
+		normalize(D);
+
+		//Radius of the cylinder set by user
+		double radius = w->getRadius();
+
+		//Bandwidth for the mean shift algorithm set by user
+		//TODO: handle the case of non-integer bandwidth! Simply ceil the value and declare a bigger look up table...
+		int bandwidth = int(w->getBandwidth()+0.5);
+		
+		//Flag that decide if user wants to use global or cylinder threshold
+		bool useLocalThreshold = w->getUseLocalThreshold();
+
+		qDebug("Radius is %f", radius);
+		qDebug("Bandwidth is %d", bandwidth);
+		qDebug("useLocalThreshold is %d", useLocalThreshold);
+
+		//Boolean look up table for the sphere kernel
+		bool * look_up_table = w->getLookUpTable();
+		if(look_up_table == 0){
+			qDebug("Look Up Table for sphere kernel is a null pointer. Something gone wrong. Exiting Marker Function.");
+			throw 1;
+		}
+
+		//Finding points inside cylinder
+		std::vector<XYZ> seeds;
+		
+		unsigned char* vp = 0;
+		switch (curImg->getDatatype())
+		{
+		case V3D_UINT8:
+			vp = data4dp + (chno + volTimePoint*dim4)*(dim3*dim2*dim1);
+			break;
+		case V3D_UINT16:
+			vp = data4dp + (chno + volTimePoint*dim4)*(dim3*dim2*dim1)*sizeof(short int);
+			break;
+		case V3D_FLOAT32:
+			vp = data4dp + (chno + volTimePoint*dim4)*(dim3*dim2*dim1)*sizeof(float);
+			break;
+		default:
+			v3d_msg("Unsupported data type found. You should never see this.", 0);
+			if(w){
+				w->setCursor(localOldCursor);
+			}
+			return loc;
+		}
+
+		double * normalized_histogram = new double[256];
+		for(int counter=0;counter<256;counter++)
+			normalized_histogram[counter] = 0;
+
+                
+		for(int k=0;k<dim3;k++){
+			for(int j=0;j<dim2;j++){
+				for(int i=0;i<dim1;i++){
+					XYZ test_point(i, j, k);
+					XYZ V = test_point - P1;
+					double rect_distance = sqrt(pow(norm(V), 2) - pow((V.x*D.x + V.y*D.y + V.z*D.z), 2));
+					if(rect_distance <= radius){
+						seeds.push_back(test_point);
+						if(useLocalThreshold){
+							int intensity = 0;
+							switch (curImg->getDatatype()){
+								case V3D_UINT8:
+									intensity = int(sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  i, j, k, dataViewProcBox.box, clipplane) + 0.5);
+								break;
+								case V3D_UINT16:
+									intensity = int(sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  i, j, k, dataViewProcBox.box, clipplane) + 0.5);
+								break;
+								case V3D_FLOAT32:
+									intensity = int(sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  i, j, k, dataViewProcBox.box, clipplane) + 0.5);
+								break;
+								default:
+									v3d_msg("Unsupported data type found. You should never see this.", 0);
+									if(w){
+										w->setCursor(localOldCursor);
+									}
+									return loc;
+							}
+							normalized_histogram[intensity] += 1;
+						}
+					}
+				}
+			}
+		}
+
+
+		qDebug("there are %d seeds before inspecting dataset", seeds.size());
+
+		if(useLocalThreshold){
+			for(int i=0;i<256;i++){
+				normalized_histogram[i] = normalized_histogram[i]/seeds.size();
+			}
+		}
+		
+		int threshold = 0;
+		if(useLocalThreshold){
+			std::vector<int> results = multi_kapur(normalized_histogram, 256, 2);
+			int min_threshold = 1e9;
+			for(std::vector<int>::iterator it = results.begin();it != results.end();it++){
+				int actual_thresh = *it;
+				if(actual_thresh < min_threshold)
+					min_threshold = actual_thresh;
+			}
+			threshold = min_threshold;
+			qDebug("local computed threshold is %d", threshold);
+		}
+		else{
+			threshold = curImg->getThresholds()[chno];
+			qDebug("threshold from curImg is %d", threshold);
+		}
+		
+		delete[] normalized_histogram;
+
+		std::vector<XYZ> seeds_thresholded;
+		//Discard points with intensity value under threshold
+		for(unsigned int i=0;i<seeds.size();i++){
+			int value;
+			XYZ seed = seeds[i];
+
+			switch (curImg->getDatatype())
+			{
+			case V3D_UINT8:
+				value = int(sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			case V3D_UINT16:
+				value = int(sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			case V3D_FLOAT32:
+				value = int(sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			default:
+				v3d_msg("Unsupported data type found. You should never see this.", 0);
+				if(w){
+					w->setCursor(localOldCursor);
+				}
+				return loc;
+			}
+
+			if(value >= threshold)
+				seeds_thresholded.push_back(seed);
+		}
+
+		qDebug("there are %d seeds after applying threshold", seeds_thresholded.size());
+
+		//Discard points that are not local maxima, not locally above threshold nor inside smaller cylinder
+		std::vector<XYZ> seeds_final;
+		std::vector<XYZ> seeds_not_inside;
+		for(unsigned int t=0;t<seeds_thresholded.size();t++){
+			bool is_local_max = true;
+			bool is_local_above_threshold = true;
+			bool is_inside_smaller_cylinder = true;
+			int local_sum = 0;
+			XYZ seed = seeds_thresholded[t];
+
+			int seed_value;
+			switch (curImg->getDatatype())
+			{
+			case V3D_UINT8:
+				seed_value = int(sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			case V3D_UINT16:
+				seed_value = int(sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			case V3D_FLOAT32:
+				seed_value = int(sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  seed.x, seed.y, seed.z, dataViewProcBox.box, clipplane) + 0.5);
+				break;
+			default:
+				v3d_msg("Unsupported data type found. You should never see this.", 0);
+				if(w){
+					w->setCursor(localOldCursor);
+				}
+				return loc;
+			}
+
+			for(int k=-1;k<=1;k++){
+				for(int j=-1;j<=1;j++){
+					for(int i=-1;i<=1;i++){						
+						int neighbour_value;
+						switch (curImg->getDatatype())
+						{
+						case V3D_UINT8:
+							neighbour_value = int(sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  (seed.x + i), (seed.y + j), (seed.z + k), dataViewProcBox.box, clipplane) + 0.5);
+							break;
+						case V3D_UINT16:
+							neighbour_value = int(sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  (seed.x + i), (seed.y + j), (seed.z + k), dataViewProcBox.box, clipplane) + 0.5);
+							break;
+						case V3D_FLOAT32:
+							neighbour_value = int(sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  (seed.x + i), (seed.y + j), (seed.z + k), dataViewProcBox.box, clipplane) + 0.5);
+							break;
+						default:
+							v3d_msg("Unsupported data type found. You should never see this.", 0);
+							if(w){
+								w->setCursor(localOldCursor);
+							}
+							return loc;
+						}
+
+						if(seed_value<neighbour_value)
+							is_local_max = false;
+
+						local_sum += neighbour_value;
+					}
+				}
+			}
+
+			if(local_sum < 27*threshold)
+				is_local_above_threshold = false;
+
+			//TODO: let the user decide smaller radius?
+			XYZ V = seed - P1;
+			double rect_distance = sqrt(pow(norm(V), 2) - pow((V.x*D.x + V.y*D.y + V.z*D.z), 2));
+			if(2*rect_distance > radius)
+				is_inside_smaller_cylinder = false;
+
+			if(is_local_max && is_local_above_threshold && is_inside_smaller_cylinder)
+				seeds_final.push_back(seed);
+			else if(is_local_max && is_local_above_threshold && !is_inside_smaller_cylinder)
+				seeds_not_inside.push_back(seed);
+		}
+
+
+		qDebug("there are %d seeds after inspecting dataset", seeds_final.size());
+		qDebug("there are %d seeds not inside smaller cylinder", seeds_not_inside.size());
+
+		//Mean shift algorithm
+		double epsilon = 1e-4;
+		int max_iterations = 400;
+		
+		std::vector<XYZ> actual_seeds;
+		if(seeds_final.size() > 0)
+			actual_seeds = seeds_final;
+		else if(seeds_not_inside.size() > 0)
+			actual_seeds = seeds_not_inside;
+		else{
+			if(w){
+				w->setCursor(localOldCursor);
+			}
+			throw 1;
+		}
+			
+		float max_mass = -1;
+		for(unsigned int t=0;t<actual_seeds.size();t++){
+			XYZ old_centroid = actual_seeds[t];
+			double step_made = 1e9;
+			int iteration = 0;
+			XYZ to_be_added(0, 0, 0);
+			float mass = 0;
+			while((step_made > epsilon)&&(iteration <= max_iterations)){
+				iteration++;
+				XYZ new_centroid(0, 0, 0);
+				float sum = 0;
+				XYZ P = old_centroid;
+				for(int i=-bandwidth;i<=bandwidth;i++){
+					for(int j=-bandwidth;j<=bandwidth;j++){
+						for(int k=-bandwidth;k<=bandwidth;k++){
+							P.x = old_centroid.x + i;
+							P.y = old_centroid.y + j;
+							P.z = old_centroid.z + k;
+							float value = 0;
+							XYZ V = P - P1;
+							double rect_distance = sqrt(pow(norm(V), 2) - pow((V.x*D.x + V.y*D.y + V.z*D.z), 2));
+							if((rect_distance <= radius) && (look_up_table[(2*bandwidth + 1)*(2*bandwidth + 1)*(i+bandwidth) + (2*bandwidth + 1)*(j+bandwidth) + (k+bandwidth)] == true)){
+								switch (curImg->getDatatype())
+								{
+								case V3D_UINT8:
+									value = sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+									break;
+								case V3D_UINT16:
+									value = sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+									break;
+								case V3D_FLOAT32:
+									value = sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+									break;
+								default:
+									v3d_msg("Unsupported data type found. You should never see this.", 0);
+									if(w){
+										w->setCursor(localOldCursor);
+									}
+									return loc;
+								}
+							}
+
+							new_centroid = new_centroid + P*value;
+							sum = sum + value;
+						}
+					}
+				}
+
+				if (sum)
+					to_be_added = new_centroid / sum;
+				else{
+					to_be_added = old_centroid;
+					break;
+				}
+				step_made = norm(old_centroid - to_be_added);
+				old_centroid = to_be_added;
+			}
+
+			step_made = 1e9;
+			iteration = 0;
+
+			//Second pass
+			while((step_made > epsilon)&&(iteration <= max_iterations)){
+				iteration++;
+				XYZ new_centroid(0, 0, 0);
+				float sum = 0;
+				XYZ P = old_centroid;
+				for(int i=-bandwidth;i<=bandwidth;i++){
+					for(int j=-bandwidth;j<=bandwidth;j++){
+						for(int k=-bandwidth;k<=bandwidth;k++){
+							P.x = old_centroid.x + i;
+							P.y = old_centroid.y + j;
+							P.z = old_centroid.z + k;
+							float value = 0;
+							XYZ V = P - P1;
+							double rect_distance = sqrt(pow(norm(V), 2) - pow((V.x*D.x + V.y*D.y + V.z*D.z), 2));
+							if(rect_distance <= (radius)){
+								if(look_up_table[(2*bandwidth + 1)*(2*bandwidth + 1)*(i+bandwidth) + (2*bandwidth + 1)*(j+bandwidth) + (k+bandwidth)] == true){
+									switch (curImg->getDatatype())
+									{
+									case V3D_UINT8:
+										value = sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+										break;
+									case V3D_UINT16:
+										value = sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+										break;
+									case V3D_FLOAT32:
+										value = sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+										break;
+									default:
+										v3d_msg("Unsupported data type found. You should never see this.", 0);
+										if(w){
+											w->setCursor(localOldCursor);
+										}
+										return loc;
+									}
+								}
+							}
+							new_centroid = new_centroid + P*value;
+							sum = sum + value;
+						}
+					}
+				}
+
+				if (sum)
+					to_be_added = new_centroid / sum;
+				else{
+					to_be_added = old_centroid;
+					break;
+				}
+				step_made = norm(old_centroid - to_be_added);
+				old_centroid = to_be_added;
+				mass = sum;
+			}
+			
+			if(max_mass < mass){
+				max_mass = mass;
+				loc = to_be_added;
+			}
+		}
+		
+		//Legacy
+		if (p_value)
+		{
+			XYZ P = loc;
+			float value;
+			switch (curImg->getDatatype())
+			{
+			case V3D_UINT8:
+				value = sampling3dAllTypesatBounding( vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+				break;
+			case V3D_UINT16:
+				value = sampling3dAllTypesatBounding( (short int *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+				break;
+			case V3D_FLOAT32:
+				value = sampling3dAllTypesatBounding( (float *)vp, dim1, dim2, dim3,  P.x, P.y, P.z, dataViewProcBox.box, clipplane);
+				break;
+			default:
+				v3d_msg("Unsupported data type found. You should never see this.", 0);
+				if(w){
+					w->setCursor(localOldCursor);
+				}
+				return loc;
+			}
+			*p_value = value;
+		}
+	}//valid data
+#endif
+	if(w){
+		w->setCursor(localOldCursor);
+	}
+	return loc;
+}
 
 int Renderer_gl1::getVolumeXsectPosOfMarkerLine(XYZ & locA, XYZ & locB, const MarkerPos& pos, int defaultChanno)
 {
